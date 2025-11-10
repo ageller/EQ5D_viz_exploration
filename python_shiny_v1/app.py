@@ -8,6 +8,7 @@
 from pathlib import Path
 from shiny import App, render, ui, reactive
 from shinywidgets import render_widget, output_widget
+import numpy as np
 
 from eq5d import *
 from plots import *
@@ -37,6 +38,9 @@ app_ui = ui.page_fluid(
                 ui.output_ui("survey_content"),
                 ui.input_action_button("submit", "Submit", class_="btn btn-primary"),
                 ui.input_action_button("reset", "Reset Survey", class_="btn btn-warning btn-reset"),
+                # remove this when done testing
+                ui.br(),ui.br(),
+                ui.input_action_button("testing", "Test Responses", class_="btn btn-testing"),
             ),
         ),
         ui.div({"class": "divider", "id": "divider"}),
@@ -44,9 +48,15 @@ app_ui = ui.page_fluid(
             ui.div({"class": "card-header"}, "Your EQ-5D Profile"),
             ui.div({"class": "card-body"},
                 ui.output_ui("vis_message"),
-                output_widget("gauge_plot"),
-                output_widget("bar_plot")
-            ),
+                ui.div({"class": "vis-component"},
+                    ui.output_ui("gauge_title"),
+                    output_widget("gauge_plot"),
+                ),
+                ui.div({"class": "vis-component"},
+                    ui.output_ui("bar_title"),
+                    output_widget("bar_plot")
+                ),
+            )
         )
     )
 )
@@ -118,6 +128,19 @@ def server(input, output, session):
             return  # Ignore first auto-trigger
         slider_activated.set(True)  
 
+    # When the user clicks submit:
+    @reactive.effect
+    @reactive.event(input.testing)
+    def _on_test():
+        ui.update_numeric("mobility", value=np.random.randint(1, high=5))
+        ui.update_numeric("selfcare", value=np.random.randint(1, high=5))
+        ui.update_numeric("usual_activities", value=np.random.randint(1, high=5))
+        ui.update_numeric("pain", value=np.random.randint(1, high=5))
+        ui.update_numeric("anxiety", value=np.random.randint(1, high=5))
+        ui.update_numeric("health_today", value=np.random.randint(0, high=100))
+        slider_activated.set(True)  
+        survey_completed.set(True)
+        update_completion_status()
 
     @output
     @render.ui
@@ -177,13 +200,25 @@ def server(input, output, session):
     def vis_message():
         # populate the message in the vis side of the UI (only shows something if survey incomplete)
         if survey_completed.get():
-            return ui.h4({"style": "text-align: center;"},"EQ5D Score Summary")
+            return ui.p("")
         else:
             return ui.div({"style": "text-align: center; padding: 50px; color: #95a5a6;"},
                 ui.h4("Please complete the survey to see your health profile visualization"),
                 ui.p("Answer the questions on the left to see your results here.")
             )
 
+    @output
+    @render.ui
+    def bar_title():
+        # populate the message in the vis side of the UI (only shows something if survey incomplete)
+        if survey_completed.get():
+            return ui.div(
+                ui.h2({"style": "margin-top:40px; margin-bottom:0"},"Health Dimensions"),
+                ui.h3("Assessment across five key health areas."),
+            )
+        else:
+            return ui.p("")
+        
     @output
     @render_widget
     def bar_plot():
@@ -193,6 +228,18 @@ def server(input, output, session):
         else:
             return blank_fig()
 
+    @output
+    @render.ui
+    def gauge_title():
+        # populate the message in the vis side of the UI (only shows something if survey incomplete)
+        if survey_completed.get():
+            return ui.div(
+                ui.h2("Overall Health Score"),
+                ui.h3("The average value of your health dimensions.")
+            )
+        else:
+            return ui.p("")
+        
     @output
     @render_widget
     def gauge_plot():

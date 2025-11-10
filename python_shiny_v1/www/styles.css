@@ -6,7 +6,18 @@ h1 {
     font-weight:bold;
     margin-top:20px;
 }
-
+h2 {
+    /* background-color:#f8f9fa; */
+    font-weight:bold;
+    color:black;
+    text-align:left;
+    font-size:20px;
+}
+h3 {
+    color:darkgray;
+    text-align:left;
+    font-size:14px;   
+}
 /* cards */
 .resizable-container {
     display: flex;
@@ -22,6 +33,7 @@ h1 {
     overflow-y: auto;
     min-width: 300px;
     overflow: hidden;
+    border-radius: 8px;
 }
 .card-header {
     background-color: #4E2A84;
@@ -35,12 +47,12 @@ h1 {
     font-weight: bold;
 }
 .survey-section{
-    border-radius: 8px 0 0 8px;
     flex: 0.5;
+    margin-right:8px;
 }
 .viz-section {
-    border-radius: 0 8px 8px 0;
     flex: 1;
+    margin-left:8px;
 }
 .card-section > .card-body{
     overflow-y: auto;
@@ -50,24 +62,46 @@ h1 {
 
 /* divider */
 .divider {
-    width: 6px;
+    width: 3px;
     cursor: col-resize;
     background-color: #bdc3c7;
     position: relative;
     flex-shrink: 0;
     transition: background-color 0.2s;
 }
-.divider:hover {
-    background-color: #95a5a6;
-}
+
 .divider::after {
+    /* circle */
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 24px;
+    height: 24px;
+    background-color: white;
+    border: 2px solid #d1d5db;
+    border-radius: 50%;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: border-color 0.2s;
+}
+.divider::before {
+    /* 3 dots */
     content: '⋮';
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    color: white;
-    font-size: 20px;
+    color: #9ca3af;
+    font-size: 18px;
+    z-index: 1;
+}
+.divider:hover {
+    background-color: #95a5a6;
+}
+.divider:hover::after {
+    border-color: #95a5a6;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.15);
 }
 
 /* survey questions */
@@ -119,6 +153,11 @@ h1 {
 .btn-primary:hover {
     background-color: #836EAA;
     border-color: #836EAA;
+}
+.btn-testing {
+    background-color: gray;
+    border-color: darkgray;
+    color:white;
 }
 
 /* Initially dim the slider until user interacts */

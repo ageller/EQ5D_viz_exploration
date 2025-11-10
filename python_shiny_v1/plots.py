@@ -25,7 +25,7 @@ def get_responses(eq5d_questions, input):
         val = input[s_key]()
         if val is not None and val != "":
             if s_data["type"] == "dropdown":
-                responses[s_key] = int(val) - 0.5 # center in the section? 
+                responses[s_key] = int(val)
             if s_data["type"] == "slider":
                 # normalize and flip
                 responses[s_key] = (100 - int(val))/20.
@@ -41,12 +41,25 @@ def survey_bar_fig(eq5d_questions, input):
     fig = go.Figure()
     
     dimensions = list(eq5d_questions.keys())
-    dimension_labels = [eq5d_questions[d]["question"].split("(")[0].strip() for d in dimensions]
+    dimension_labels = [eq5d_questions[d]["question"].split("(")[0].strip().title()+"  " for d in dimensions]
     
-    # Reverse order so first question appears at top
-    dimensions = dimensions[::-1]
-    dimension_labels = dimension_labels[::-1]
-    
+    base = 0.05 #to allow the left corners to round
+    # First, add background gray bars that extend to the full domain
+    for i, dim in enumerate(dimensions):
+        fig.add_trace(go.Bar(
+            base=base, 
+            x=[5 - base],  # Full width, but minus the base offset 
+            y=[dimension_labels[i]],
+            orientation='h',
+            marker=dict(
+                color='#f3f4f6', 
+                cornerradius=15
+            ),
+            showlegend=False,
+            hoverinfo='skip',
+            width=0.6,
+        ))
+        
     for i, dim in enumerate(dimensions):
         if dim in responses:
             level = min(max(int(np.ceil(responses[dim])), 1), 5)
@@ -54,7 +67,8 @@ def survey_bar_fig(eq5d_questions, input):
             label = level_labels[level]
             
             fig.add_trace(go.Bar(
-                x=[responses[dim]],
+                base=base,
+                x=[responses[dim] - base],
                 y=[dimension_labels[i]],
                 orientation='h',
                 marker=dict(
@@ -63,9 +77,10 @@ def survey_bar_fig(eq5d_questions, input):
                 ),
                 text=f"{label}",
                 textposition='inside',
-                textfont=dict(color='white', size=12),
+                textfont=dict(color="white", size=12, weight='bold'),
                 hovertemplate=f"<b>{dimension_labels[i]}</b><br>{label}<extra></extra>",
-                showlegend=False
+                showlegend=False,
+                width=0.6,
             ))
     
     fig.update_layout(
@@ -76,23 +91,26 @@ def survey_bar_fig(eq5d_questions, input):
             tick0=1,
             dtick=1,
             tickvals=[0,1,2,3,4,5],    
-            ticktext=["LEAST SEVERE","","","","","MOST SEVERE"],  
+            ticktext=["","← Better","","","Worse →",""],  
         ),
         yaxis=dict(title=""),
-        height=600,
-        bargap=0.3,
-        margin=dict(l=200, r=50, t=50, b=100),
+        height=400,
+        bargap=0.1,
+        barmode='overlay',
+        margin=dict(l=200, r=150, t=50, b=100),
         plot_bgcolor='white',
         paper_bgcolor='white',
         font=dict(size=14)
     )
     
+    fig.update_yaxes(categoryorder='array', categoryarray=dimension_labels[::-1])
+    
     # Add background shading for severity zones
-    fig.add_vrect(x0=0, x1=1, fillcolor=color_map[1], opacity=0.1, layer="below", line_width=0)
-    fig.add_vrect(x0=1, x1=2, fillcolor=color_map[2], opacity=0.1, layer="below", line_width=0)
-    fig.add_vrect(x0=2, x1=3, fillcolor=color_map[3], opacity=0.1, layer="below", line_width=0)
-    fig.add_vrect(x0=3, x1=4, fillcolor=color_map[4], opacity=0.1, layer="below", line_width=0)
-    fig.add_vrect(x0=4, x1=5, fillcolor=color_map[5], opacity=0.1, layer="below", line_width=0)
+    # fig.add_vrect(x0=0, x1=1, fillcolor=color_map[1], opacity=0.1, layer="below", line_width=0)
+    # fig.add_vrect(x0=1, x1=2, fillcolor=color_map[2], opacity=0.1, layer="below", line_width=0)
+    # fig.add_vrect(x0=2, x1=3, fillcolor=color_map[3], opacity=0.1, layer="below", line_width=0)
+    # fig.add_vrect(x0=3, x1=4, fillcolor=color_map[4], opacity=0.1, layer="below", line_width=0)
+    # fig.add_vrect(x0=4, x1=5, fillcolor=color_map[5], opacity=0.1, layer="below", line_width=0)
      
     return fig
 
@@ -117,9 +135,9 @@ def survey_gauge_fig(eq5d_questions, input):
                 'axis': {
                     'range': [0, 5], 
                     'tickvals': [0, 5], 
-                    'ticktext': ['less severe', 'more severe']
+                    'ticktext': ['Better', 'Worse']
                 },
-                'bar': {'color': 'black'},  # the needle / current value bar
+                'bar': {'color': 'black', 'thickness': 0.25},  # the current value
                 'steps': [
                     {'range': [0, 1], 'color': color_map[1]},   
                     {'range': [1, 2], 'color': color_map[2]},  
@@ -144,6 +162,11 @@ def survey_gauge_fig(eq5d_questions, input):
         showarrow=False,
         font=dict(size=48, color=color)
     )
+
+    fig.update_layout(
+        height=300
+    )
+
     return fig
 
 
