@@ -1,4 +1,5 @@
 import plotly.graph_objects as go
+import numpy as np
 
 # Color mapping for severity levels
 color_map = {
@@ -17,15 +18,25 @@ level_labels = {
     5: "Extreme/Unable"
 }
 
-
-def survey_fig(eq5d_questions, input):
+def get_responses(eq5d_questions, input):
     # Get all responses, filtering out empty strings
     responses = {}
-    for dim in eq5d_questions.keys():
-        val = input[dim]()
+    for s_key, s_data in eq5d_questions.items():
+        val = input[s_key]()
         if val is not None and val != "":
-            responses[dim] = int(val) 
-    
+            if s_data["type"] == "dropdown":
+                responses[s_key] = int(val) - 0.5 # center in the section? 
+            if s_data["type"] == "slider":
+                # normalize and flip
+                responses[s_key] = (100 - int(val))/20.
+
+    return responses
+
+
+def survey_bar_fig(eq5d_questions, input):
+
+    responses = get_responses(eq5d_questions, input)    
+
     # Create the horizontal bar chart
     fig = go.Figure()
     
@@ -38,12 +49,12 @@ def survey_fig(eq5d_questions, input):
     
     for i, dim in enumerate(dimensions):
         if dim in responses:
-            level = responses[dim]
+            level = min(max(int(np.ceil(responses[dim])), 1), 5)
             color = color_map[level]
             label = level_labels[level]
             
             fig.add_trace(go.Bar(
-                x=[level],
+                x=[responses[dim]],
                 y=[dimension_labels[i]],
                 orientation='h',
                 marker=dict(
@@ -85,13 +96,63 @@ def survey_fig(eq5d_questions, input):
      
     return fig
 
+def survey_gauge_fig(eq5d_questions, input):
+    # create a gauge plot with a summary score and text
+
+    responses = get_responses(eq5d_questions, input)   
+
+    # create an average value 
+    mn = np.mean(list(responses.values()))
+    level = min(max(int(np.ceil(mn)), 1), 5)
+    color = color_map[level]
+    label = level_labels[level]
+
+    # note that you can include a delta to indicate a change from the previous visit
+
+    fig = go.Figure(
+        go.Indicator(
+            mode="gauge",
+            value=mn,  
+            gauge={
+                'axis': {
+                    'range': [0, 5], 
+                    'tickvals': [0, 5], 
+                    'ticktext': ['less severe', 'more severe']
+                },
+                'bar': {'color': 'black'},  # the needle / current value bar
+                'steps': [
+                    {'range': [0, 1], 'color': color_map[1]},   
+                    {'range': [1, 2], 'color': color_map[2]},  
+                    {'range': [2, 3], 'color': color_map[3]},  
+                    {'range': [3, 4], 'color': color_map[4]},   
+                    {'range': [4, 5], 'color': color_map[5]},   
+                ],
+                'threshold': {
+                    'line': {'color': 'black', 'width': 4},
+                    'thickness': 0.75,
+                    'value': mn  # show a threshold line at current value
+                }
+            }
+        )
+    )
+
+
+    # Manually add the annotation (since I don't want to see the number)
+    fig.add_annotation(
+        text=label,
+        x=0.5, y=0.2, 
+        showarrow=False,
+        font=dict(size=48, color=color)
+    )
+    return fig
+
 
 def blank_fig():
     fig = go.Figure()
     fig.update_xaxes(visible=False)
     fig.update_yaxes(visible=False)
     fig.update_layout(
-        height=400,
+        height=10,
         showlegend=False,
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
