@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     document.addEventListener('mouseup', function() {
-        if (isResizing) Shiny.setInputValue("redraw_trigger", Math.random(), {priority: "event"}); // triggers re-render of plots
+        if (isResizing) trigger_plot_rerender()
         isResizing = false;
         document.body.style.cursor = 'default';
     });
@@ -56,6 +56,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
 });
 
+function trigger_plot_rerender(){
+    // triggers re-render of plots
+    Shiny.setInputValue("redraw_trigger", Math.random(), {priority: "event"}); 
+}
 function hide_slider(index=0){
     const parentElement = document.getElementById('survey-panel');
     parentElement.querySelectorAll('.irs-handle')[index].classList.add('hidden');
@@ -67,6 +71,22 @@ function show_slider(index=0){
     parentElement.querySelectorAll('.irs-handle')[index].classList.remove('hidden');
     parentElement.querySelectorAll('.irs-single')[index].classList.remove('hidden');
     parentElement.querySelectorAll('.irs-bar')[index].classList.remove('hidden');
+}
+
+function toggle_survey_visibility(){
+    const divider = document.getElementById('divider');
+    const surveyPanel = document.getElementById('survey-panel'); 
+    const button = document.getElementById('toggle_survey_visibility_button');
+    if (surveyPanel.classList.contains('hidden')) {
+        surveyPanel.classList.remove('hidden');
+        divider.classList.remove('hidden');
+        button.textContent  = "Hide Survey";
+    } else {
+        surveyPanel.classList.add('hidden');
+        divider.classList.add('hidden');
+        button.textContent  = "Show Survey";
+    }
+    trigger_plot_rerender();
 }
 
 // I want to hide the slider when the user resets the survey
@@ -83,6 +103,9 @@ $(document).on('shiny:message', function(event) {
             if (msg.id === 'js_command') {
                 if (msg.message.action === 'hide_sliders') {
                     hide_slider();
+                }
+                if (msg.message.action === 'toggle_survey_visibility') {
+                    toggle_survey_visibility();
                 }
             }
         });

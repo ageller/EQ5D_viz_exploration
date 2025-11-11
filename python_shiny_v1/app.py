@@ -26,9 +26,9 @@ app_ui = ui.page_fluid(
     ui.h1("EQ-5D-5L Health Questionnaire Dashboard"),
     ui.hr(),
     
-    ui.div(
-        {"class": "header-controls"},
-        ui.output_ui("completion_status")
+    ui.div({"class": "header-controls"},
+        ui.input_action_button("toggle_survey_visibility_button", "Hide Survey", class_="btn btn-primary"),
+        ui.output_ui("completion_status"),
     ),
     
     ui.div({"class": "resizable-container"},
@@ -74,6 +74,7 @@ def server(input, output, session):
 
     # Track whether the user has interacted with the sider
     slider_activated = reactive.Value(False)
+
     # Track if initialized (to avoid counting initialization for the slider activation)
     slider_initialized = reactive.Value(False)
 
@@ -97,8 +98,15 @@ def server(input, output, session):
         completed = all(r is not None and r != "" for r in responses)
         survey_completed.set(completed)
 
+    ####### buttons
+    @reactive.effect
+    @reactive.event(input.toggle_survey_visibility_button)
+    def _on_survey_toggle():
+        # send a message to javascript to show or hide the survey
+        # according to the documentation, I should be able to send_custom_message, but this isn't working
+        session.send_input_message("js_command", {"action": "toggle_survey_visibility", "reason": "user_toggle"})
 
-    @reactive.Effect
+    @reactive.effect
     @reactive.event(input.reset_button)
     def _on_reset():
         # when user clicks reset, 
@@ -124,7 +132,7 @@ def server(input, output, session):
         redraw_counter.set(redraw_counter.get() + 1)
 
     # When the user touches the slider:
-    @reactive.Effect
+    @reactive.effect
     @reactive.event(input.health_today)
     def _on_slider_interaction():
         # If it's the first call, ignore it
@@ -134,7 +142,7 @@ def server(input, output, session):
         slider_activated.set(True)  
 
     # triggered from JS on resize
-    @reactive.Effect
+    @reactive.effect
     @reactive.event(input.redraw_trigger)
     def _on_resize():
         redraw_counter.set(redraw_counter.get() + 1)
@@ -169,10 +177,11 @@ def server(input, output, session):
             text = f"✓ Survey Complete ({answered}/{total})"
         else:
             badge_class = "completion-badge incomplete"
-            text = f"In Progress ({answered}/{total})"
+            text = f"Survey In Progress ({answered}/{total})"
         
         return ui.div({"class": badge_class}, text)
     
+    ####### survey questions
     @output
     @render.ui
     def survey_content():
@@ -207,6 +216,7 @@ def server(input, output, session):
                 )
         return ui.div(*question_inputs)
     
+    ####### viz panel
     @output
     @render.ui
     def viz_message():
