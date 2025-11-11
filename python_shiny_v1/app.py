@@ -36,25 +36,27 @@ app_ui = ui.page_fluid(
             ui.div({"class": "card-header"}, "Survey Questions"),
             ui.div({"class": "card-body"},
                 ui.output_ui("survey_content"),
-                ui.input_action_button("submit", "Submit", class_="btn btn-primary"),
-                ui.input_action_button("reset", "Reset Survey", class_="btn btn-warning btn-reset"),
+                ui.input_action_button("submit_button", "Submit", class_="btn btn-primary"),
+                ui.input_action_button("reset_button", "Reset Survey", class_="btn btn-warning btn-reset"),
                 # remove this when done testing
                 ui.br(),ui.br(),
-                ui.input_action_button("testing", "Test Responses", class_="btn btn-testing"),
+                ui.input_action_button("testing_button", "Test Random Responses", class_="btn btn-testing"),
             ),
         ),
         ui.div({"class": "divider", "id": "divider"}),
         ui.div({"class": "card-section viz-section"},
             ui.div({"class": "card-header"}, "Your EQ-5D Profile"),
             ui.div({"class": "card-body"},
-                ui.output_ui("vis_message"),
-                ui.div({"class": "vis-component"},
-                    ui.output_ui("gauge_title"),
-                    output_widget("gauge_plot"),
+                ui.output_ui("viz_message"),
+                ui.div({"class": "viz-component"},
+                    ui.output_ui("summary_viz_title"),
+                    ui.output_ui("summary_viz_toggle"),
+                    output_widget("summary_viz_plot"),
                 ),
-                ui.div({"class": "vis-component"},
-                    ui.output_ui("bar_title"),
-                    output_widget("bar_plot")
+                ui.div({"class": "viz-component"},
+                    ui.output_ui("dimensions_viz_title"),
+                    ui.output_ui("dimensions_viz_toggle"),
+                    output_widget("dimensions_viz_plot")
                 ),
             )
         )
@@ -63,8 +65,9 @@ app_ui = ui.page_fluid(
 
 # Server Logic
 def server(input, output, session):
-    # In your server function
-    # 
+    
+    # Shared reactive value controlling redraws 
+    redraw_counter = reactive.value(0)
 
     # Track whether the survey is completed and submitted
     survey_completed = reactive.value(False)
@@ -94,8 +97,9 @@ def server(input, output, session):
         completed = all(r is not None and r != "" for r in responses)
         survey_completed.set(completed)
 
+
     @reactive.Effect
-    @reactive.event(input.reset)
+    @reactive.event(input.reset_button)
     def _on_reset():
         # when user clicks reset, 
         # - set all the dropdowns to default unselected
@@ -114,9 +118,10 @@ def server(input, output, session):
     
     # When the user clicks submit:
     @reactive.effect
-    @reactive.event(input.submit)
+    @reactive.event(input.submit_button)
     def _on_submit():
         update_completion_status()
+        redraw_counter.set(redraw_counter.get() + 1)
 
     # When the user touches the slider:
     @reactive.Effect
@@ -128,9 +133,16 @@ def server(input, output, session):
             return  # Ignore first auto-trigger
         slider_activated.set(True)  
 
+    # triggered from JS on resize
+    @reactive.Effect
+    @reactive.event(input.redraw_trigger)
+    def _on_resize():
+        redraw_counter.set(redraw_counter.get() + 1)
+
+
     # When the user clicks submit:
     @reactive.effect
-    @reactive.event(input.testing)
+    @reactive.event(input.testing_button)
     def _on_test():
         ui.update_numeric("mobility", value=np.random.randint(1, high=5))
         ui.update_numeric("selfcare", value=np.random.randint(1, high=5))
@@ -197,8 +209,8 @@ def server(input, output, session):
     
     @output
     @render.ui
-    def vis_message():
-        # populate the message in the vis side of the UI (only shows something if survey incomplete)
+    def viz_message():
+        # populate the message in the viz side of the UI (only shows something if survey incomplete)
         if survey_completed.get():
             return ui.p("")
         else:
@@ -207,31 +219,11 @@ def server(input, output, session):
                 ui.p("Answer the questions on the left to see your results here.")
             )
 
+    ####### summary title, toggle and plot
     @output
     @render.ui
-    def bar_title():
-        # populate the message in the vis side of the UI (only shows something if survey incomplete)
-        if survey_completed.get():
-            return ui.div(
-                ui.h2({"style": "margin-top:40px; margin-bottom:0"},"Health Dimensions"),
-                ui.h3("Assessment across five key health areas."),
-            )
-        else:
-            return ui.p("")
-        
-    @output
-    @render_widget
-    def bar_plot():
-        # populate the plot on the vis side (only shows something if suvey completed)    
-        if survey_completed.get():
-            return survey_bar_fig(eq5d_questions, input)
-        else:
-            return blank_fig()
-
-    @output
-    @render.ui
-    def gauge_title():
-        # populate the message in the vis side of the UI (only shows something if survey incomplete)
+    def summary_viz_title():
+        # populate the message in the viz side of the UI (only shows something if survey incomplete)
         if survey_completed.get():
             return ui.div(
                 ui.h2("Overall Health Score"),
@@ -241,12 +233,87 @@ def server(input, output, session):
             return ui.p("")
         
     @output
-    @render_widget
-    def gauge_plot():
-        # populate the plot on the vis side (only shows something if suvey completed)    
+    @render.ui
+    def summary_viz_toggle():
+        #  Pill-shaped toggle for score display
         if survey_completed.get():
-            return survey_gauge_fig(eq5d_questions, input)
+            return ui.div(
+                ui.input_radio_buttons(
+                    "summary_plot_type",
+                    None,  # No label
+                    choices={
+                        "gauge": "Gauge |",
+                        "number": "Number |",
+                        "ring": "Ring"
+                    },
+                    selected="gauge",
+                    inline=True
+                ),
+                class_="viz-toggle"
+            )
+        else:
+            return ui.p("")
+                    
+    @output
+    @render_widget
+    def summary_viz_plot():
+        # summary plot
+        _ = redraw_counter.get()  # single reactive dependency for submit and resixe
+        if survey_completed.get():
+            if input['summary_plot_type']() == 'gauge':
+                return survey_gauge_fig(eq5d_questions, input)
+            else:
+                return under_construction()
         else:
             return blank_fig()
+        
+
+    ####### dimensions title, toggle and plot
+    @output
+    @render.ui
+    def dimensions_viz_title():
+        # populate the message in the viz side of the UI (only shows something if survey incomplete)
+        if survey_completed.get():
+            return ui.div(
+                ui.h2({"style": "margin-top:40px; margin-bottom:0"},"Health Dimensions"),
+                ui.h3("Assessment across five key health areas."),
+            )
+        else:
+            return ui.p("")
+
+    @output
+    @render.ui
+    def dimensions_viz_toggle():
+        #  Pill-shaped toggle for score display
+        if survey_completed.get():
+            return ui.div(
+                ui.input_radio_buttons(
+                    "dimensions_plot_type",
+                    None,  # No label
+                    choices={
+                        "bar": "Bar |",
+                        "radar": "Radar",
+                    },
+                    selected="bar",
+                    inline=True
+                ),
+                class_="viz-toggle"
+            )
+        else:
+            return ui.p("")
+
+    @output
+    @render_widget
+    def dimensions_viz_plot():
+        _ = redraw_counter.get()  # single reactive dependency for submit and resixe
+        if survey_completed.get():
+            if input['dimensions_plot_type']() == 'bar':
+                return survey_bar_fig(eq5d_questions, input)
+            else:
+                return under_construction()
+        else:
+            return blank_fig()
+        
+
         
 app = App(app_ui, server)

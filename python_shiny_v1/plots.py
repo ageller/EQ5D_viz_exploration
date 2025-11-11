@@ -182,3 +182,15 @@ def blank_fig():
         margin=dict(l=0, r=0, t=0, b=0),
     )
     return fig
+
+def under_construction():
+    fig = blank_fig()
+    fig.add_annotation(
+        text="Under Construction",
+        xref="paper", yref="paper", #
+        x=0.5, y=0.5, 
+        showarrow=False, 
+        font=dict(size=20, color="gray")
+    )
+    fig.update_layout(height=50)
+    return fig
