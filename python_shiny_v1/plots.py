@@ -11,7 +11,7 @@ color_map = {
 }
 
 level_labels = {
-    1: "No problems",
+    1: "No Problems",
     2: "Slight",
     3: "Moderate",
     4: "Severe",
